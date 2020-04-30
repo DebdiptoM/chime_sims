@@ -202,7 +202,7 @@ def loop_over_shrinkage(seed, holdout=7, shrvec=np.linspace(0.05, 0.95, 10)):
     return test_loss
 
 
-def get_test_loss(seed, holdout, shrinkage):
+def get_test_loss(seed, holdout, shrinkage): #(seed = n_chains,7,penn_vec : linspace)
     return chain(seed, shrinkage, holdout)["test_loss"]
 
 
@@ -281,9 +281,9 @@ def main():
 
     write_inputs(options)
 
-    NOBS = CENSUS_TS.shape[0] - as_of_days_ago
+    NOBS = CENSUS_TS.shape[0] - as_of_days_ago #NOBS = 47 : as_of_days_ago=0
 
-    # rolling window variance
+    # rolling window variance of 7 days
     rwstd = []
     for i in range(NOBS):
         y = CENSUS_TS.hosp[:i][-7:]
@@ -314,7 +314,7 @@ def main():
 
     if fit_penalty:
         pen_vec = np.linspace(0.05, 0.95, 10)
-        tuples_for_starmap = [(i, 7, j) for i in range(n_chains) for j in pen_vec]
+        tuples_for_starmap = [(i, 7, j) for i in range(n_chains) for j in pen_vec] # [(0, 7, 0.05), (0, 7, 0.15), (0, 7, 0.25), (0, 7, 0.35), (0, 7, 0.44999999999999996), (0, 7, 0.5499999999999999), (0, 7, 0.65), (0, 7, 0.75), (0, 7, 0.85), (0, 7, 0.95), (1, 7, 0.05), (1, 7, 0.15), (1, 7, 0.25), (1, 7, 0.35), (1, 7, 0.44999999999999996), (1, 7, 0.5499999999999999), (1, 7, 0.65), (1, 7, 0.75), (1, 7, 0.85), (1, 7, 0.95), (2, 7, 0.05), (2, 7, 0.15), (2, 7, 0.25), (2, 7, 0.35), (2, 7, 0.44999999999999996), (2, 7, 0.5499999999999999), (2, 7, 0.65), (2, 7, 0.75), (2, 7, 0.85), (2, 7, 0.95), (3, 7, 0.05), (3, 7, 0.15), (3, 7, 0.25), (3, 7, 0.35), (3, 7, 0.44999999999999996), (3, 7, 0.5499999999999999), (3, 7, 0.65), (3, 7, 0.75), (3, 7, 0.85), (3, 7, 0.95), (4, 7, 0.05), (4, 7, 0.15), (4, 7, 0.25), (4, 7, 0.35), (4, 7, 0.44999999999999996), (4, 7, 0.5499999999999999), (4, 7, 0.65), (4, 7, 0.75), (4, 7, 0.85), (4, 7, 0.95), (5, 7, 0.05), (5, 7, 0.15), (5, 7, 0.25), (5, 7, 0.35), (5, 7, 0.44999999999999996), (5, 7, 0.5499999999999999), (5, 7, 0.65), (5, 7, 0.75), (5, 7, 0.85), (5, 7, 0.95), (6, 7, 0.05), (6, 7, 0.15), (6, 7, 0.25), (6, 7, 0.35), (6, 7, 0.44999999999999996), (6, 7, 0.5499999999999999), (6, 7, 0.65), (6, 7, 0.75), (6, 7, 0.85), (6, 7, 0.95), (7, 7, 0.05), (7, 7, 0.15), (7, 7, 0.25), (7, 7, 0.35), (7, 7, 0.44999999999999996), (7, 7, 0.5499999999999999), (7, 7, 0.65), (7, 7, 0.75), (7, 7, 0.85), (7, 7, 0.95)]
         pool = mp.Pool(mp.cpu_count())
         shrinkage_chains = pool.starmap(get_test_loss, tuples_for_starmap)
         pool.close()
