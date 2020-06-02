@@ -51,6 +51,10 @@ def get_inputs(options):
         census_ts.loc[census_ts.vent.isna(), "vent"] = census_ts.hosp.loc[
             census_ts.vent.isna()
         ] * np.mean(census_ts.vent / census_ts.hosp)
+        #icu prop
+        census_ts.loc[census_ts.icu.isna(), "icu"] = census_ts.hosp.loc[
+            census_ts.icu.isna()
+        ] * np.mean(census_ts.icu / census_ts.hosp)
         # import parameters
         params = pd.read_csv(path.join(f"{datadir}", f"{prefix}_parameters.csv"))
     if options.parameters is not None:
@@ -61,6 +65,10 @@ def get_inputs(options):
         census_ts.loc[census_ts.vent.isna(), "vent"] = census_ts.hosp.loc[
             census_ts.vent.isna()
         ] * np.mean(census_ts.vent / census_ts.hosp)
+        #impute icu
+        census_ts.loc[census_ts.icu.isna(), "icu"] = census_ts.hosp.loc[
+            census_ts.icu.isna()
+        ] * np.mean(census_ts.icu / census_ts.hosp)
     return census_ts, params
 
 
@@ -113,6 +121,15 @@ def eval_pos(pos, shrinkage=None, holdout=0, sample_obs=True):
             residuals_vent[residuals_vent == 0] = 0.01
         sigma2 = np.var(residuals_vent)
         LL += loglik(residuals_vent)
+      # Loss for ICU
+    if train.icu.sum() > 0:
+        residuals_icu = ( # 4 for icu
+            draw["arr"][: (NOBS - holdout), 4] - train.icu.values[:NOBS]
+        )  # 5 corresponds with vent census
+        if any(residuals_icu == 0):
+            residuals_icu[residuals_icu == 0] = 0.01
+        sigma2 = np.var(residuals_icu)
+        LL += loglik(residuals_icu)
 
     # loss for hosp
     residuals_hosp = (
@@ -137,11 +154,13 @@ def eval_pos(pos, shrinkage=None, holdout=0, sample_obs=True):
         posterior=posterior,
         residuals_vent=residuals_vent,
         residuals_hosp=residuals_hosp,
+        residuals_icu=residuals_icu,
     )
     if holdout > 0:
         res_te_vent = draw["arr"][(NOBS - holdout) : NOBS, 5] - test.vent.values[:NOBS]
         res_te_hosp = draw["arr"][(NOBS - holdout) : NOBS, 3] - test.hosp.values[:NOBS]
-        test_loss = (np.mean(res_te_hosp ** 2) + np.mean(res_te_vent ** 2)) / 2
+        res_te_icu = draw["arr"][(NOBS - holdout) : NOBS, 4] - test.icu.values[:NOBS]
+        test_loss = (np.mean(res_te_hosp ** 2) + np.mean(res_te_vent ** 2) + np.mean(res_te_icu ** 2)) / 2
         out.update({"test_loss": test_loss})
     return out
 
@@ -297,6 +316,14 @@ def main():
         rwstd.append(np.std(y))
     CENSUS_TS["vent_rwstd"] = np.nan
     CENSUS_TS.loc[range(NOBS), "vent_rwstd"] = rwstd
+    #Rolling window var icu
+    rwstd = []
+    for i in range(NOBS):
+        y = CENSUS_TS.icu[:i][-7:]
+        rwstd.append(np.std(y))
+    CENSUS_TS["icu_rwstd"] = np.nan
+    CENSUS_TS.loc[range(NOBS), "icu_rwstd"] = rwstd
+
 
     if sample_obs:
         fig = plt.figure()
